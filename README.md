@@ -1,16 +1,24 @@
 # DOPDropDownMenu-Enhanced
 
+**Calios: update at 21st Oct.**
+
+- Add color change for column title when certain item is selected.
+- Add manually hide menu function.
+- Add checks for iOS 9 in case of awesome separating lines.
+
+---
+
 **New Update:**<br>
-support cell image 
+support cell image
 新增cell 图片 支持, 新增 detailText  
 
 DOPDropDownMenu 添加双列表 优化版 （double tableView, The optimization version ）
 
-首先 感谢 DOPDropDownMenu 作者的无私奉献和允许,  https://github.com/dopcn/DOPDropDownMenu 
+首先 感谢 DOPDropDownMenu 作者的无私奉献和允许,  https://github.com/dopcn/DOPDropDownMenu
 
 我在此基础上美化来了界面，添加了双列表的应用，优化了代码，增强了稳定性，希望大家喜欢
 
-First, I would like to thank the author of the [DOPDropDownMenu](https://github.com/dopcn/DOPDropDownMenu) for their selfless dedication.
+First, I would like to thank the author of the [DOPDropDownMenu][1] for their selfless dedication.
 
 This enhanced version includes beautiful improvements to the interface, double tableview capability, optimized code, and improved stability.  Enjoy!
 
@@ -20,8 +28,8 @@ pod 'DOPDropDownMenu-Enhanced', '~> 1.0.0'
 ```
 
 ### 应用截图
-![image](https://raw.githubusercontent.com/12207480/DOPDropDownMenu-Enhanced/master/screenshot/dopmenu.png)
-![image](https://raw.githubusercontent.com/12207480/DOPDropDownMenu-Enhanced/master/screenshot/dopmendemo.gif)
+![image][image-1]
+![image][image-2]
 
 ### 用法
 
@@ -84,3 +92,8 @@ pod 'DOPDropDownMenu-Enhanced', '~> 1.0.0'
 - (void)menu:(DOPDropDownMenu *)menu didSelectRowAtIndexPath:(DOPIndexPath *)indexPath;
 @end
 ```
+
+[1]:	https://github.com/dopcn/DOPDropDownMenu
+
+[image-1]:	https://raw.githubusercontent.com/12207480/DOPDropDownMenu-Enhanced/master/screenshot/dopmenu.png
+[image-2]:	https://raw.githubusercontent.com/12207480/DOPDropDownMenu-Enhanced/master/screenshot/dopmendemo.gif
