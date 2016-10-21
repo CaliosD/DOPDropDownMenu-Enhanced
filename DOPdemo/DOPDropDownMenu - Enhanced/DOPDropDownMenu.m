@@ -85,6 +85,12 @@
 @property (nonatomic, strong) UIImageView *buttomImageView; // 底部imageView
 @property (nonatomic, weak) UIView *bottomShadow;
 
+// Calios: added for backup.(1012)
+@property (nonatomic, copy) NSArray *origTitles;    // Back up all the seperate titles.
+@property (nonatomic, copy) NSMutableArray *isSelectedArray;   // Whether "all" is selected. Used for changing title color.
+
+// Calios: added end.(1012)
+
 //data source
 @property (nonatomic, copy) NSArray *array;
 //layers array
@@ -97,6 +103,8 @@
 #define IS_IPAD (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)
 #define IS_IPHONE (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone)
 #define IS_RETINA ([[UIScreen mainScreen] scale] >= 2.0)
+#define IS_STRING_BLANK(string) (!string || [string length] == 0 || [string stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]].length <= 0)   // Calios: added for checking blank string.(1021)
+#define IS_IOS9 ([[[UIDevice currentDevice] systemVersion] floatValue] >= 9.0)
 
 #define SCREEN_WIDTH ([[UIScreen mainScreen] bounds].size.width)
 #define SCREEN_HEIGHT ([[UIScreen mainScreen] bounds].size.height)
@@ -185,8 +193,13 @@
                 [_delegate menu:self didSelectRowAtIndexPath:[DOPIndexPath indexPathWithCol:indexPath.column row:indexPath.row item:0]];
             }
         }else {
-            title.string = [_dataSource menu:self titleForRowAtIndexPath:
-                            [DOPIndexPath indexPathWithCol:indexPath.column row:self.isRemainMenuTitle ? 0 : indexPath.row]];
+            // Calios: added for reset title when select "all". (1017)
+            title.string =  (indexPath.row == 0) ? _origTitles[indexPath.column] :[_dataSource menu:self titleForRowAtIndexPath:
+                                                                                   [DOPIndexPath indexPathWithCol:indexPath.column row:self.isRemainMenuTitle ? 0 : indexPath.row]];
+            BOOL isSelected = (indexPath.row == 0) ? NO : YES;
+            _isSelectedArray[indexPath.column] = [NSNumber numberWithBool:isSelected];
+            // Calios: added end.(1017)
+
             if (trigger) {
                 [_delegate menu:self didSelectRowAtIndexPath:indexPath];
             }
@@ -198,7 +211,12 @@
         CGFloat sizeWidth = (size.width < (self.frame.size.width / _numOfMenu) - 25) ? size.width : self.frame.size.width / _numOfMenu - 25;
         title.bounds = CGRectMake(0, 0, sizeWidth, size.height);
     }else if ([_dataSource menu:self numberOfItemsInRow:indexPath.row column:indexPath.column] > indexPath.column) {
-        title.string = [_dataSource menu:self titleForItemsInRowAtIndexPath:indexPath];
+        // Calios: added for reset title when select "all". (1017)
+        title.string =  (indexPath.row == 0) ? _origTitles[indexPath.column] :[_dataSource menu:self titleForItemsInRowAtIndexPath:indexPath];
+        BOOL isSelected = (indexPath.row == 0) ? NO : YES;
+        _isSelectedArray[indexPath.column] = [NSNumber numberWithBool:isSelected];
+        // Calios: added end.(1017)
+        
         if (trigger) {
             [_delegate menu:self didSelectRowAtIndexPath:indexPath];
         }
@@ -211,7 +229,29 @@
     }
 }
 
+// Calios: added for changing color when selecting.(1021)
+- (void)selectIndexPathForFilter:(DOPIndexPath *)indexPath
+{
+    [self selectIndexPath:indexPath triggerDelegate:NO];
+    if (indexPath.column >= 0 && indexPath.column < _isSelectedArray.count) {
+        _isSelectedArray[indexPath.column] = (indexPath.row == 0) ? @NO : @YES;
+    }
+    for (int i = 0; i < _numOfMenu; i++) {
+        BOOL isSelected = [_isSelectedArray[i] boolValue];
+        
+        [self animateIndicator:_indicators[i] Forward:NO selected:isSelected complete:^{
+            [self animateTitle:_titles[i] show:NO selected:isSelected complete:^{
+                
+            }];
+        }];
+    }
+}
+// Calios: added end.
+
 - (void)selectIndexPath:(DOPIndexPath *)indexPath {
+    if (indexPath.column >= 0 && indexPath.column < _isSelectedArray.count) {
+        _isSelectedArray[indexPath.column] = (indexPath.row == 0) ? @NO : @YES;
+    }
     [self selectIndexPath:indexPath triggerDelegate:YES];
 }
 
@@ -250,6 +290,8 @@
     CGFloat bgLayerInterval = self.frame.size.width / _numOfMenu;
     
     NSMutableArray *tempTitles = [[NSMutableArray alloc] initWithCapacity:_numOfMenu];
+    // Calios: added for backup titles.(1012)
+    NSMutableArray *tmpOrigs = [[NSMutableArray alloc] initWithCapacity:_numOfMenu];
     NSMutableArray *tempIndicators = [[NSMutableArray alloc] initWithCapacity:_numOfMenu];
     NSMutableArray *tempBgLayers = [[NSMutableArray alloc] initWithCapacity:_numOfMenu];
     
@@ -263,15 +305,30 @@
         CGPoint titlePosition = CGPointMake( (i * 2 + 1) * textLayerInterval , self.frame.size.height / 2);
         
         NSString *titleString;
-        if (!self.isClickHaveItemValid && _dataSourceFlags.numberOfItemsInRow && [_dataSource menu:self numberOfItemsInRow:0 column:i]>0) {
-            titleString = [_dataSource menu:self titleForItemsInRowAtIndexPath:[DOPIndexPath indexPathWithCol:i row:0 item:0]];
-        }else {
-            titleString =[_dataSource menu:self titleForRowAtIndexPath:[DOPIndexPath indexPathWithCol:i row:0]];
+        
+        // Calios: added for seperate top titles.(0907)
+        if ([_dataSource respondsToSelector:@selector(menu:seperateTitleForColumn:)]) {
+            if([_dataSource menu:self seperateTitleForColumn:i]){
+                titleString = [_dataSource menu:self seperateTitleForColumn:i];
+            }
+            else{
+                titleString =[_dataSource menu:self titleForRowAtIndexPath:[DOPIndexPath indexPathWithCol:i row:0]];
+            }
+        }
+        else{
+            // Calios: added end for seperate top titles.(0907)
+            if (!self.isClickHaveItemValid && _dataSourceFlags.numberOfItemsInRow && [_dataSource menu:self numberOfItemsInRow:0 column:i]>0) {
+                titleString = [_dataSource menu:self titleForItemsInRowAtIndexPath:[DOPIndexPath indexPathWithCol:i row:0 item:0]];
+            }else {
+                titleString =[_dataSource menu:self titleForRowAtIndexPath:[DOPIndexPath indexPathWithCol:i row:0]];
+            }
         }
         
         CATextLayer *title = [self createTextLayerWithNSString:titleString withColor:self.textColor andPosition:titlePosition];
         [self.layer addSublayer:title];
         [tempTitles addObject:title];
+        [tmpOrigs addObject:(IS_STRING_BLANK(titleString) ? @"" : titleString)];
+
         //indicator
         CAShapeLayer *indicator = [self createIndicatorWithColor:self.indicatorColor andPosition:CGPointMake((i + 1)*separatorLineInterval - 10, self.frame.size.height / 2)];
         [self.layer addSublayer:indicator];
@@ -287,6 +344,7 @@
         
     }
     _titles = [tempTitles copy];
+    _origTitles = [tmpOrigs copy];
     _indicators = [tempIndicators copy];
     _bgLayers = [tempBgLayers copy];
 }
@@ -309,6 +367,7 @@
         _indicatorColor = kTextColor;
         _tableViewHeight = IS_IPHONE_4_OR_LESS ? 200 : kTableViewHeight;
         _isClickHaveItemValid = YES;
+        _isSelectedArray = [NSMutableArray arrayWithArray:@[@NO, @NO, @NO]];    // Calios: added for change color. (1012)
         
         //lefttableView init
         _leftTableView = [[UITableView alloc] initWithFrame:CGRectMake(origin.x, self.frame.origin.y + self.frame.size.height, self.frame.size.width/2, 0) style:UITableViewStylePlain];
@@ -327,6 +386,11 @@
         _rightTableView.separatorColor = kSeparatorColor;
         _rightTableView.separatorInset = UIEdgeInsetsZero;
         //_rightTableView.tableFooterView = [[UIView alloc]init];
+        
+        if (IS_IOS9) {
+            _leftTableView.cellLayoutMarginsFollowReadableWidth = NO;
+            _rightTableView.cellLayoutMarginsFollowReadableWidth = NO;
+        }
         
         _buttomImageView = [[UIImageView alloc]initWithFrame:CGRectMake(origin.x, self.frame.origin.y + self.frame.size.height, self.frame.size.width, kButtomImageViewHeight)];
         _buttomImageView.image = [UIImage imageNamed:@"icon_chose_bottom"];
@@ -442,8 +506,9 @@
     
     for (int i = 0; i < _numOfMenu; i++) {
         if (i != tapIndex) {
-            [self animateIndicator:_indicators[i] Forward:NO complete:^{
-                [self animateTitle:_titles[i] show:NO complete:^{
+            BOOL isSelected = [_isSelectedArray[i] boolValue];
+            [self animateIndicator:_indicators[i] Forward:NO selected:isSelected complete:^{
+                [self animateTitle:_titles[i] show:NO selected:isSelected complete:^{
                     
                 }];
             }];
@@ -451,7 +516,8 @@
     }
     
     if (tapIndex == _currentSelectedMenudIndex && _show) {
-        [self animateIdicator:_indicators[_currentSelectedMenudIndex] background:_backGroundView tableView:_leftTableView title:_titles[_currentSelectedMenudIndex] forward:NO complecte:^{
+        BOOL isSelected = (_currentSelectedMenudIndex == -1) ? NO : [_isSelectedArray[_currentSelectedMenudIndex] boolValue];
+        [self animateIdicator:_indicators[_currentSelectedMenudIndex] background:_backGroundView tableView:_leftTableView title:_titles[_currentSelectedMenudIndex] forward:NO  selected:isSelected complecte:^{
             _currentSelectedMenudIndex = tapIndex;
             _show = NO;
         }];
@@ -462,7 +528,9 @@
             [_rightTableView reloadData];
         }
         
-        [self animateIdicator:_indicators[tapIndex] background:_backGroundView tableView:_leftTableView title:_titles[tapIndex] forward:YES complecte:^{
+        BOOL isSelected = (_currentSelectedMenudIndex == -1) ? NO : [_isSelectedArray[_currentSelectedMenudIndex] boolValue];
+        
+        [self animateIdicator:_indicators[tapIndex] background:_backGroundView tableView:_leftTableView title:_titles[tapIndex] forward:YES selected:isSelected complecte:^{
             _show = YES;
         }];
     }
@@ -470,13 +538,22 @@
 
 - (void)backgroundTapped:(UITapGestureRecognizer *)paramSender
 {
-    [self animateIdicator:_indicators[_currentSelectedMenudIndex] background:_backGroundView tableView:_leftTableView title:_titles[_currentSelectedMenudIndex] forward:NO complecte:^{
+    BOOL isSelected = (_currentSelectedMenudIndex == -1) ? NO : [_isSelectedArray[_currentSelectedMenudIndex] boolValue];
+    
+    [self animateIdicator:_indicators[_currentSelectedMenudIndex] background:_backGroundView tableView:_leftTableView title:_titles[_currentSelectedMenudIndex] forward:NO selected:isSelected complecte:^{
         _show = NO;
     }];
 }
 
+#pragma mark - Public
+
+- (void)hideDropDonwMenu
+{
+    [self backgroundTapped:nil];
+}
+
 #pragma mark - animation method
-- (void)animateIndicator:(CAShapeLayer *)indicator Forward:(BOOL)forward complete:(void(^)())complete {
+- (void)animateIndicator:(CAShapeLayer *)indicator Forward:(BOOL)forward selected:(BOOL)isSelected complete:(void(^)())complete {
     [CATransaction begin];
     [CATransaction setAnimationDuration:0.25];
     [CATransaction setAnimationTimingFunction:[CAMediaTimingFunction functionWithControlPoints:0.4 :0.0 :0.2 :1.0]];
@@ -498,7 +575,7 @@
         indicator.fillColor = _textSelectedColor.CGColor;
     } else {
         // 收缩
-        indicator.fillColor = _textColor.CGColor;
+        indicator.fillColor = isSelected ? _textSelectedColor.CGColor : _textColor.CGColor;
     }
     
     complete();
@@ -586,22 +663,23 @@
     complete();
 }
 
-- (void)animateTitle:(CATextLayer *)title show:(BOOL)show complete:(void(^)())complete {
+- (void)animateTitle:(CATextLayer *)title show:(BOOL)show selected:(BOOL)isSelected complete:(void(^)())complete {
+    
     CGSize size = [self calculateTitleSizeWithString:title.string];
-    CGFloat sizeWidth = (size.width < (self.frame.size.width / _numOfMenu) - 25) ? size.width : self.frame.size.width / _numOfMenu - 25;
+    CGFloat sizeWidth = (size.width < (self.frame.size.width / _numOfMenu) - 45) ? size.width : self.frame.size.width / _numOfMenu - 45;
     title.bounds = CGRectMake(0, 0, sizeWidth, size.height);
     if (!show) {
-        title.foregroundColor = _textColor.CGColor;
+        title.foregroundColor = isSelected ? _textSelectedColor.CGColor :_textColor.CGColor;
     } else {
         title.foregroundColor = _textSelectedColor.CGColor;
     }
     complete();
 }
 
-- (void)animateIdicator:(CAShapeLayer *)indicator background:(UIView *)background tableView:(UITableView *)tableView title:(CATextLayer *)title forward:(BOOL)forward complecte:(void(^)())complete{
+- (void)animateIdicator:(CAShapeLayer *)indicator background:(UIView *)background tableView:(UITableView *)tableView title:(CATextLayer *)title forward:(BOOL)forward selected:(BOOL)isSelected complecte:(void(^)())complete{
     
-    [self animateIndicator:indicator Forward:forward complete:^{
-        [self animateTitle:title show:forward complete:^{
+    [self animateIndicator:indicator Forward:forward selected:isSelected complete:^{
+        [self animateTitle:title show:forward selected:isSelected complete:^{
             [self animateBackGroundView:background show:forward complete:^{
                 [self animateTableView:tableView show:forward complete:^{
                 }];
@@ -743,6 +821,26 @@
     }
 }
 
+// Calios: added to remove layout margins. (0919)
+-(void)tableView:(UITableView *)tableView willDisplayCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    // Remove seperator inset
+    if ([cell respondsToSelector:@selector(setSeparatorInset:)]) {
+        [cell setSeparatorInset:UIEdgeInsetsZero];
+    }
+    
+    // Prevent the cell from inheriting the Table View's margin settings
+    if ([cell respondsToSelector:@selector(setPreservesSuperviewLayoutMargins:)]) {
+        [cell setPreservesSuperviewLayoutMargins:NO];
+    }
+    
+    // Explictly set your cell's layout margins
+    if ([cell respondsToSelector:@selector(setLayoutMargins:)]) {
+        [cell setLayoutMargins:UIEdgeInsetsZero];
+    }
+}
+// Calios: added end to remove layout margins. (0919)
+
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     
     
@@ -779,7 +877,7 @@
         // 有双列表 有item数据
         if (self.isClickHaveItemValid) {
             title.string = [_dataSource menu:self titleForRowAtIndexPath:[DOPIndexPath indexPathWithCol:_currentSelectedMenudIndex row:row]];
-            [self animateTitle:title show:YES complete:^{
+            [self animateTitle:title show:YES selected:YES complete:^{
                 [_rightTableView reloadData];
             }];
         } else {
@@ -789,9 +887,14 @@
         
     } else {
         
-        title.string = [_dataSource menu:self titleForRowAtIndexPath:
-                        [DOPIndexPath indexPathWithCol:_currentSelectedMenudIndex row:self.isRemainMenuTitle ? 0 : row]];
-        [self animateIdicator:_indicators[_currentSelectedMenudIndex] background:_backGroundView tableView:_leftTableView title:_titles[_currentSelectedMenudIndex] forward:NO complecte:^{
+        // Calios: added for reset title when select "all". (1012)
+        title.string =  (row == 0) ? _origTitles[_currentSelectedMenudIndex] :[_dataSource menu:self titleForRowAtIndexPath:
+                                                                               [DOPIndexPath indexPathWithCol:_currentSelectedMenudIndex row:self.isRemainMenuTitle ? 0 : row]];
+        BOOL isSelected = (row == 0) ? NO : YES;
+        _isSelectedArray[_currentSelectedMenudIndex] = [NSNumber numberWithBool:isSelected];
+        // Calios: added end.(1012)
+        
+        [self animateIdicator:_indicators[_currentSelectedMenudIndex] background:_backGroundView tableView:_leftTableView title:_titles[_currentSelectedMenudIndex] forward:NO selected:isSelected complecte:^{
             _show = NO;
         }];
         return YES;
@@ -802,10 +905,11 @@
     CATextLayer *title = (CATextLayer *)_titles[_currentSelectedMenudIndex];
     NSInteger currentSelectedMenudRow = [_currentSelectRowArray[_currentSelectedMenudIndex] integerValue];
     title.string = [_dataSource menu:self titleForItemsInRowAtIndexPath:[DOPIndexPath indexPathWithCol:_currentSelectedMenudIndex row:currentSelectedMenudRow item:item]];
-    [self animateIdicator:_indicators[_currentSelectedMenudIndex] background:_backGroundView tableView:_leftTableView title:_titles[_currentSelectedMenudIndex] forward:NO complecte:^{
+    BOOL isSelected = (_currentSelectedMenudIndex == -1) ? NO : [_isSelectedArray[_currentSelectedMenudIndex] boolValue];
+    
+    [self animateIdicator:_indicators[_currentSelectedMenudIndex] background:_backGroundView tableView:_leftTableView title:_titles[_currentSelectedMenudIndex] forward:NO selected:isSelected complecte:^{
         _show = NO;
     }];
-    
 }
 
 @end

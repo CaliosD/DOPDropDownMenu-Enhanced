@@ -42,6 +42,14 @@
 - (NSString *)menu:(DOPDropDownMenu *)menu titleForRowAtIndexPath:(DOPIndexPath *)indexPath;
 
 @optional
+
+/**
+ * Calios: 原demo中，默认展示的title是列表中的第一项。增加该方法后，可以自定义默认title。(0907)
+ *
+ * 返回 menu 第column列的默认title
+ */
+- (NSString *)menu:(DOPDropDownMenu *)menu seperateTitleForColumn:(NSInteger)column;
+
 /**
  *  返回 menu 有多少列 ，默认1列
  */
@@ -129,5 +137,8 @@
 - (void)selectIndexPath:(DOPIndexPath *)indexPath; // 默认trigger delegate
 
 - (void)selectIndexPath:(DOPIndexPath *)indexPath triggerDelegate:(BOOL)trigger; // 调用代理
+
+- (void)hideDropDonwMenu;   // Calios: added for manually hide menu.(0919)
+
 @end
 
