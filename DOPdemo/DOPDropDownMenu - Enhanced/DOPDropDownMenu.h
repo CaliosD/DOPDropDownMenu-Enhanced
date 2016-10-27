@@ -138,7 +138,7 @@
 
 - (void)selectIndexPath:(DOPIndexPath *)indexPath triggerDelegate:(BOOL)trigger; // 调用代理
 
-- (void)hideDropDonwMenu;   // Calios: added for manually hide menu.(0919)
+- (void)hideDropDownMenu;   // Calios: added for manually hide menu.(0919)
 
 @end
 

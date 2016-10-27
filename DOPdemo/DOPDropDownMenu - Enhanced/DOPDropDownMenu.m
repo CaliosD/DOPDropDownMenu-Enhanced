@@ -547,7 +547,7 @@
 
 #pragma mark - Public
 
-- (void)hideDropDonwMenu
+- (void)hideDropDownMenu
 {
     [self backgroundTapped:nil];
 }
